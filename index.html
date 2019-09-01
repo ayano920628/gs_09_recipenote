@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="index.css">
+<link href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" rel="stylesheet">
+
+<title>canvas</title>
+<script src="js/jquery-2.1.3.min.js"></script>
+<style>
+  canvas{
+    border:1px solid blue;
+  }
+</style>
+</head>
+<body>
+  <!-- 画像のアップロード、取得、切り取り、canvasで編集、保存 -->
+<section>
+<h1>Canvas</h1>
+<nav>
+  <div><i class="fas fa-pencil-alt fa-lg"></i><i class="far fa-image"></i></div>
+  <!-- 線の色を変更するHTML要素 -->
+  <input type="color" id="cid">
+  <!-- 線の太さを変更するHTML要素 -->
+  <input type="range" id="rid" min="1" max="60" step="3" value="1">
+  <button id="clear_btn">Clear</button>
+</nav>
+<canvas id="drowarea" width="800" height="800"></canvas>
+<button onclick="downloadCanvas()">図としてダウンロード</button>
+<a id="hiddenLink" download="canvas.png">link</a>
+<button class="addimage">Add</button>
+<div id="imgSample"></div>
+<div>
+  <form autocomplete="off">
+  <input type="file" id="setfile">
+  <input type="submit" value="storageへ">
+  </form>
+</div>
+</section>
+
+<script src="js/jquery-2.1.3.min.js"></script>
+<!-- The core Firebase JS SDK is always required and must be listed first -->
+<script src="https://www.gstatic.com/firebasejs/6.5.0/firebase.js"></script>
+<!-- TODO: Add SDKs for Firebase products that you want to use
+     https://firebase.google.com/docs/web/setup#config-web-app -->
+<script>
+  // Your web app's Firebase configuration
+  var firebaseConfig = {
+    apiKey: "AIzaSyAQuEF2euICd13ul8WCqq43pGTT4vjDwgw",
+    authDomain: "dev14-canvas.firebaseapp.com",
+    databaseURL: "https://dev14-canvas.firebaseio.com",
+    projectId: "dev14-canvas",
+    storageBucket: "dev14-canvas.appspot.com",
+    messagingSenderId: "471521227115",
+    appId: "1:471521227115:web:25b6e1025f553a98"
+  };
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+
+  let newPostRef = firebase.database();
+  let storageRef = firebase.storage();
+  // let storageRef = firebase.storage().ref();
+
+// アップロード画像の取得-----------------------------------------------
+  newPostRef.ref("/images").once("value", function(data){
+  let v = data.val();
+  if(v === null){
+      return;
+  }
+  for(let i = 0; i < Object.keys(v).length; i++){
+    let urlid = Object.keys(v)[i];
+    let url = v[urlid].url;
+    let imgs = `<div class="uploadimage"><img src="${url}" alt=""></div>`;
+    $("#imgSample").append(imgs);
+  }
+});
+//-----------------------------------------------
+
+
+// 画像のアップロード-----------------------------------------------
+let file_name;
+let blob;
+// setfileの変更で処理開始（変更があった要素がeで返される）
+$("#setfile").on("change", e => {
+let file = e.target.files;
+// fileの名前を取得
+file_name = file[0].name;
+// blob形式に変換
+blob = new Blob(file, { type: "image/jpeg" });
+console.warn(blob);
+console.log(file_name);
+});
+// submitで処理開始
+$("form").on('submit', e => {
+// ページ遷移をなくす
+e.preventDefault();
+const timeNow = new Date();
+const y = timeNow.getFullYear();
+const m = (`0${(timeNow.getMonth() + 1)}`).slice(-2);
+const d = (`0${timeNow.getDate()}`).slice(-2);
+const h = (`0${timeNow.getHours()}`).slice(-2);
+const mi = (`0${timeNow.getMinutes()}`).slice(-2);
+const s = (`0${timeNow.getSeconds()}`).slice(-2);
+imageid = y + m + d + h + mi + s;
+let uploadRef = storageRef.ref('images/').child(file_name);
+uploadRef.put(blob).then(snapshot => {
+console.log(snapshot.state);
+// アップロードしたファイルのurlを取得
+uploadRef.getDownloadURL().then(url => {
+  newPostRef.ref(`images/${imageid}/`).set({
+    url: url
+  });
+   }).catch(error => {
+      console.log(error);
+   });
+});
+// valueリセットする
+   file_name = '';
+   blob = '';
+});
+//-----------------------------------------------
+
+
+//初期化-----------------------------------------------
+let canvas_mouse_event = false; //スイッチ [ true=線を引く, false=線は引かない ]  ＊＊＊
+// let isDragging = false; //ドラッグ状態かどうか
+let oldX  = 0;         //１つ前の座標を代入するための変数
+let oldY  = 0;         //１つ前の座標を代入するための変数
+let bold_line = 3;     //ラインの太さをここで指定
+let color = "black"; //ラインの色をここで指定
+
+const can = $("#drowarea")[0];    //Canvas要素をcanに代入
+const ctx = can.getContext("2d"); //canに書き込み権限を入れる
+//-----------------------------------------------
+
+$("#cid").on("change", function(){
+  color = $("#cid").val();
+});
+$("#rid").on("change", function(){
+  bold_line = $("#rid").val();
+});
+
+//#clear_btn：クリアーボタンAction
+$("#clear_btn").on("mouseup",function(){
+  ctx.beginPath();
+  ctx.clearRect(0, 0, can.width, can.height);
+});
+
+let a = false;
+let b = false;
+
+$(".fa-pencil-alt").on("click", function(){
+  a = true;
+  b = false;
+  console.log(a);
+  console.log(b);
+  if(a===true && b===false){
+    //mousedown：フラグをTrue
+    $(can).on("mousedown",function(e){
+      oldX = e.offsetX;       //MOUSEDOWNしたX横座標取得
+      oldY = e.offsetY;       //MOUSEDOWN Y高さ座標取得
+      canvas_mouse_event=true;
+      isDragging = false;
+    });
+    //mousemove：フラグがTrueだったら描く ※e：イベント引数取得
+    $(can).on("mousemove",function(e){
+      if(canvas_mouse_event==true){
+          const px = e.offsetX;
+          const py = e.offsetY;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = bold_line;
+          ctx.beginPath();
+          ctx.lineJoin= "round";
+          ctx.lineCap = "round";
+          ctx.moveTo(oldX, oldY);
+          ctx.lineTo(px, py);
+          ctx.stroke();
+          oldX = px;
+          oldY = py;
+      }
+      isDragging = false;
+    });
+    //mouseup：フラグをfalse
+    $(can).on("mouseup",function(){
+      canvas_mouse_event=false;
+    });  
+  }
+});
+
+// $(".fa-image").on("click", function(){
+//   a = false;
+//   b = true;
+//   console.log(a);
+//   console.log(b);
+//   if(a===false && b===true){
+//     canvas_mouse_event = false;
+//     isDragging = false;
+//     // ドラッグ開始位置
+//     let start = {
+//       x: 0,
+//       y: 0
+//     };
+//     // ドラッグ中の位置
+//     let diff = {
+//       x: 0,
+//       y: 0
+//     };
+//     // ドラッグ終了後の位置
+//     let end = {
+//       x: 0,
+//       y: 0
+//     }
+//     const redraw = () => {
+//       ctx.clearRect(0, 0, can.width, can.height);
+//       ctx.drawImage(img, diff.x, diff.y)
+//     };
+//     $(can).on('mousedown', event => {
+//       isDragging = true;
+//       canvas_mouse_event = false;
+//       start.x = event.clientX;
+//       start.y = event.clientY;
+//     });
+//     $(can).on('mousemove', event => {
+//       if (isDragging) {
+//         diff.x = (event.clientX - start.x) + end.x;
+//         diff.y = (event.clientY - start.y) + end.y;
+//         redraw();
+//       }
+//     });
+//     $(can).on('mouseup', event => {
+//       isDragging = false;
+//       end.x = diff.x;
+//       end.y = diff.y;
+//     });
+//   }
+// });
+
+let srcs = [];
+$(document).on("click",".uploadimage", function(){
+  let src = $(this).find("img").attr("src");
+  srcs.push(src);
+});
+
+$(".addimage").on("click", function(){
+
+(function() {
+    var isDragging = false;
+    var dragTarget = null; // ドラッグ対象の画像の添え字
+    var images = [];
+    for (var i in srcs) {
+        images[i] = new Image();
+        images[i].src = srcs[i];
+    }
+
+    // const redraw = () => {
+    //   ctx.clearRect(0, 0, $(can).width, $(can).height);
+    //   ctx.drawImage(img, diff.x, diff.y)
+    // };
+
+
+    var loadedCount = 0;
+    for (var i in images) {
+        images[i].addEventListener('load', function() {
+            if (++loadedCount == images.length) {
+                var x = 0;
+                var y = 0;
+                var w = 100;
+                var h = 100;
+                for (var j in images) {
+                    // 画像を描画した時の情報を記憶（Imageのプロパティに突っ込むのはちょっと反則かもだけど）
+                    images[j].drawOffsetX = x;
+                    images[j].drawOffsetY = y;
+                    images[j].drawWidth   = w;
+                    images[j].drawHeight  = h;
+
+                    // 画像を描画
+                    ctx.drawImage(images[j], x, y, w, h);
+                    x += 50;
+                    y += 70;
+                }
+            }
+        }, false);
+    }
+
+    // ドラッグ開始
+    $(can).on("mousedown", function(e){
+      var posX = parseInt(e.clientX - $(can).offset().left);
+        var posY = parseInt(e.clientY - $(can).offset().top);
+
+        for (var i = images.length - 1; i >= 0; i--) {
+            // 当たり判定（ドラッグした位置が画像の範囲内に収まっているか）
+            if (posX >= images[i].drawOffsetX &&
+                posX <= (images[i].drawOffsetX + images[i].drawWidth) &&
+                posY >= images[i].drawOffsetY &&
+                posY <= (images[i].drawOffsetY + images[i].drawHeight)
+            ) {
+              dragTarget = i;
+              isDragging = true;
+              break;
+            }
+        }
+    });
+
+    // ドラッグ終了
+    $(can).on("mouseup", function(e){
+      isDragging = false;
+    });
+
+    // canvasの枠から外れた
+    var mouseOut = function(e) {
+        // canvas外にマウスカーソルが移動した場合に、ドラッグ終了としたい場合はコメントインする
+        // mouseUp(e);
+    }
+
+    // ドラッグ中
+    $(can).on("mousemove", function(e){
+        // ドラッグ終了位置
+        var posX = parseInt(e.clientX - $(can).offset().left);
+        var posY = parseInt(e.clientY - $(can).offset().top);
+
+        if (isDragging) {
+            // canvas内を一旦クリア
+            ctx.clearRect(0, 0, can.width, can.height);
+
+            var x = 0;
+            var y = 0;
+            var w = 150;
+            var h = 100;
+            for (var i in images) {
+                if (i == dragTarget) {
+                    x = posX - images[i].drawWidth / 2;
+                    y = posY - images[i].drawHeight / 2;
+
+                    // ドラッグが終了した時の情報を記憶
+                    images[i].drawOffsetX = x;
+                    images[i].drawOffsetY = y;
+                } else {
+                    x = images[i].drawOffsetX;
+                    y = images[i].drawOffsetY;
+                }
+                w = images[i].drawWidth;
+                h = images[i].drawHeight;
+
+                // 画像を描画
+                ctx.drawImage(images[i], x, y, w, h);
+            }
+        }
+
+    });
+})();
+
+});
+
+function downloadCanvas() {
+  let canvas = document.getElementById('drowarea')
+  let link = document.getElementById('hiddenLink')
+  link.href = canvas.toDataURL()
+
+  // document.getElementById('canvasImage').src = canvas.toDataURL()
+
+  link.click()
+}
+
+</script>
+</body>
+</html>

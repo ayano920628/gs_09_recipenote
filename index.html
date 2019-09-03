@@ -39,6 +39,7 @@
 </section>
 
 <script src="js/jquery-2.1.3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.js"></script>
 <!-- The core Firebase JS SDK is always required and must be listed first -->
 <script src="https://www.gstatic.com/firebasejs/6.5.0/firebase.js"></script>
 <!-- TODO: Add SDKs for Firebase products that you want to use
@@ -351,15 +352,39 @@ $(".addimage").on("click", function(){
 
 });
 
-function downloadCanvas() {
-  let canvas = document.getElementById('drowarea')
-  let link = document.getElementById('hiddenLink')
-  link.href = canvas.toDataURL()
+// function downloadCanvas() {
+//   let canvas = document.getElementById('drowarea')
+//   let link = document.getElementById('hiddenLink')
+//   link.href = canvas.toDataURL()
 
-  // document.getElementById('canvasImage').src = canvas.toDataURL()
+//   // document.getElementById('canvasImage').src = canvas.toDataURL()
 
-  link.click()
+//   link.click()
+// }
+
+// function downloadCanvas(){
+
+//   let drawarea = document.getElementById('drowarea');
+//   let link = document.getElementById('hiddenLink');
+
+//   html2canvas(drawarea, {
+//     onrendered: function(canvas) {
+//       drawarea.src = canvas.toDataURL();
+//       link.href = canvas.toDataURL();
+//       link.download = 'canvas.png';
+//       // canvas.toDataURL();
+//       link.click();
+//       console.log('drawareaの値を出力するよ');
+//       console.log(drawarea);
+//     }
+//   });
+// }
+function downloadCanvas(){
+
+let image = ctx.getImageData(0, 0, 800, 800);
+ctx.putImageData(image, 100, 100);
 }
+
 
 </script>
 </body>

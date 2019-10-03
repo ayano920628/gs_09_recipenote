@@ -1,0 +1,10 @@
+
+.firstline {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px;
+}
+.editdelete {
+    padding: 0px;
+    text-align: end;
+}

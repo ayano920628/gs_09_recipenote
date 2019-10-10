@@ -2,37 +2,31 @@
 session_start();
 include("../funcs.php");
 // sschk();
-
-$userid = $_GET["id"];
+$recipeid = $_GET["id"];
 
 $pdo = db_conn();
-$sql = "SELECT * FROM recipe WHERE userid=:userid";
+$sql = "SELECT * FROM recipe WHERE id=:recipeid";
 $stmt = $pdo->prepare($sql);
-$stmt->bindValue(':userid', $userid, PDO::PARAM_STR);
+$stmt->bindValue(':recipeid', $recipeid, PDO::PARAM_INT);
 $status = $stmt->execute();
 
-$usersql = "SELECT * FROM users WHERE id=:userid";
-$userstmt = $pdo->prepare($usersql);
-$userstmt->bindValue(':userid', $userid, PDO::PARAM_STR);
-$userstatus = $userstmt->execute();
-
-
-//3. SQL実行時にエラーがある場合STOP
 if($status==false){
     sql_error();
 } else {
-  while($userrecipe = $stmt->fetch(PDO::FETCH_ASSOC)){
-    $view .= '<div class="col-md-4"><h3>';
-    $view .= $userrecipe["title"];
-    $view .= '</h3><p>';
-    $view .= $userrecipe["season"];
-    $view .= '</p><p>';
-    $view .= $userrecipe["ingredient1"].','.$userrecipe["ingredient2"].','.$userrecipe["ingredient3"];
-    $view .= '</p>';
-    $view .= '<p><a class="btn btn-secondary" href="../recipe/showrecipe.php?id='.$userrecipe["id"].'" role="button">View details &raquo;</a></p>';
-    $view .= '</div>';
-  }
+    $recipe = $stmt->fetch();
 }
+if($recipe["userid"] != $_SESSION["id"]){
+    $view = '<a href="copyrecipe.php?id='.$recipeid.'"><i class="far fa-copy"></i></a>';
+}
+if($recipe["userid"] == $_SESSION["id"] || $_SESSION["kanri_flg"] == 1){
+    $view .= '<a href="detail.php?id='.$recipeid.'"><i class="fas fa-edit"></i></i></a>';
+    $view .= '<a href="delete.php?id='.$recipeid.'"><i class="fas fa-trash-alt"></i></a>';
+}
+
+$usersql = "SELECT * FROM users WHERE id=:userid";
+$userstmt = $pdo->prepare($usersql);
+$userstmt->bindValue(':userid', $recipe["userid"], PDO::PARAM_STR);
+$userstatus = $userstmt->execute();
 
 if($userstatus==false){
   sql_error();
@@ -50,18 +44,15 @@ if($userstatus==false){
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Recipe Note</title>
-
-    <!-- Bootstrap core CSS -->
+    <title>Recipe</title>
       <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css">
-
-    <!-- Custom styles for this template -->
-    <link href="https://getbootstrap.com/docs/4.0/examples/jumbotron/jumbotron.css" rel="stylesheet">
+    <link href="https://getbootstrap.com/docs/4.0/examples/starter-template/starter-template.css" rel="stylesheet">
+    <link href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" rel="stylesheet">
   </head>
 
   <body>
 
-    <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
       <a class="navbar-brand" href="../recipe/allrecipe.php">All Recipe</a>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -94,27 +85,33 @@ if($userstatus==false){
       </div>
     </nav>
 
-    <!-- Main jumbotron for a primary marketing message or call to action -->
-    <div class="jumbotron">
-      <div class="container">
-        <h1 class="display-3"><?=$userresult["name"]?>'s Recipe</h1>
-        <!-- <p></p>
-        <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> -->
-      </div>
-    </div>
-
     <div class="container">
-      <!-- Example row of columns -->
-      <div class="row">
-        <?=$view?>
-      </div>
+        <h5><a href="../mypage/userpage.php?id=<?=$userresult["id"]?>"><?=$userresult["name"]?></a>さんの</h5>
+        <h1 class="h3 mb-3 font-weight-normal"><?=$recipe["title"]?></h1>
+        <p><?=$view?></p>
+        <h4>Season</h4>
+        <label for="" class="sr-only">Season</label>
+        <div name="season" class="form-control"><?=$recipe["season"]?></div>
+        <h4>Ingredients</h4>
+        <label for="" class="sr-only">Recipe title</label>
+        <div name="ingredient" class="form-control"><?=$recipe["ingredient1"].', '.$recipe["ingredient2"].', '.$recipe["ingredient3"]?></div>
+        <h4>URL</h4>
+        <label for="" class="sr-only">URL</label>
+        <div name="url" class="form-control"><a href="<?=$recipe["url"]?>"><?=$recipe["url"]?></a></div>
+        <h4>Recipe Memo</h4>
+        <label for="" class="sr-only">Recipe Memo</label>
+        <div name="recipememo" class="form-control"><?=$recipe["recipememo"]?></div>
+        <h4>Review</h4>
+        <label for="" class="sr-only">Review</label>
+        <div name="review" class="form-control"><?=$recipe["review"]?></div>
+        <p class="mt-5 mb-3 text-muted">&copy; 2017-2018</p>
 
-      <hr>
+      <!-- <div class="starter-template">
+        <h1>Bootstrap starter template</h1>
+        <p class="lead">Use this document as a way to quickly start any new project.<br> All you get is this text and a mostly barebones HTML document.</p>
+      </div> -->
 
-      <footer>
-        <p>&copy; Company 2017</p>
-      </footer>
-    </div> <!-- /container -->
+    </div><!-- /.container -->
 
 
     <!-- Bootstrap core JavaScript
@@ -123,6 +120,5 @@ if($userstatus==false){
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
-
   </body>
 </html>

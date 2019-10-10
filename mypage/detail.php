@@ -1,43 +1,20 @@
 <?php
 session_start();
 include("../funcs.php");
-// sschk();
+sschk();
 
 $userid = $_GET["id"];
 
 $pdo = db_conn();
-$sql = "SELECT * FROM recipe WHERE userid=:userid";
+$sql = "SELECT * FROM users WHERE id=$userid";
 $stmt = $pdo->prepare($sql);
-$stmt->bindValue(':userid', $userid, PDO::PARAM_STR);
 $status = $stmt->execute();
-
-$usersql = "SELECT * FROM users WHERE id=:userid";
-$userstmt = $pdo->prepare($usersql);
-$userstmt->bindValue(':userid', $userid, PDO::PARAM_STR);
-$userstatus = $userstmt->execute();
-
 
 //3. SQL実行時にエラーがある場合STOP
 if($status==false){
     sql_error();
 } else {
-  while($userrecipe = $stmt->fetch(PDO::FETCH_ASSOC)){
-    $view .= '<div class="col-md-4"><h3>';
-    $view .= $userrecipe["title"];
-    $view .= '</h3><p>';
-    $view .= $userrecipe["season"];
-    $view .= '</p><p>';
-    $view .= $userrecipe["ingredient1"].','.$userrecipe["ingredient2"].','.$userrecipe["ingredient3"];
-    $view .= '</p>';
-    $view .= '<p><a class="btn btn-secondary" href="../recipe/showrecipe.php?id='.$userrecipe["id"].'" role="button">View details &raquo;</a></p>';
-    $view .= '</div>';
-  }
-}
-
-if($userstatus==false){
-  sql_error();
-} else {
-  $userresult = $userstmt->fetch();
+    $userinfo = $stmt->fetch();  
 }
 
 ?>
@@ -57,12 +34,14 @@ if($userstatus==false){
 
     <!-- Custom styles for this template -->
     <link href="https://getbootstrap.com/docs/4.0/examples/jumbotron/jumbotron.css" rel="stylesheet">
+    <link href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" rel="stylesheet">
+
   </head>
 
   <body>
 
     <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
-      <a class="navbar-brand" href="../recipe/allrecipe.php">All Recipe</a>
+      <a class="navbar-brand" href="#">Navbar</a>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -97,7 +76,7 @@ if($userstatus==false){
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
-        <h1 class="display-3"><?=$userresult["name"]?>'s Recipe</h1>
+        <h1 class="display-3"><?=$userinfo["name"]?></h1>
         <!-- <p></p>
         <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> -->
       </div>
@@ -105,10 +84,21 @@ if($userstatus==false){
 
     <div class="container">
       <!-- Example row of columns -->
+      <form method="post" action="update.php?id=<?=$userinfo["id"]?>">
       <div class="row">
-        <?=$view?>
+        <table>
+          <tr><th>id</th><th>name</th><th>email</th><th>lifeflg</th><th>kanriflg</th></tr>
+          <tr>
+            <td><input name="id" value="<?=$userinfo["id"]?>"></td>
+            <td><input name="name" value="<?=$userinfo["name"]?>"></td>
+            <td><input name="email" value="<?=$userinfo["email"]?>"></td>
+            <td><input name="lifeflg" value="<?=$userinfo["lifeflg"]?>"></td>
+            <td><input name="kanriflg" value="<?=$userinfo["kanriflg"]?>"></td>
+          </tr>
+        </table>
       </div>
-
+      <button class="btn btn-lg btn-primary btn-block" type="submit">Update</button>
+      </form>
       <hr>
 
       <footer>
@@ -126,3 +116,6 @@ if($userstatus==false){
 
   </body>
 </html>
+
+
+

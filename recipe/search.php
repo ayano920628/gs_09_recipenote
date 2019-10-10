@@ -1,46 +1,35 @@
 <?php
 session_start();
 include("../funcs.php");
-// sschk();
 
-$userid = $_GET["id"];
-
+$search = $_POST["search"];
 $pdo = db_conn();
-$sql = "SELECT * FROM recipe WHERE userid=:userid";
+$sql = "SELECT * FROM recipe WHERE title LIKE '%$search%' OR ingredient1 LIKE '%$search%' OR ingredient2 LIKE '%$search%' OR ingredient3 LIKE '%$search%' OR season LIKE '%$search%'";
 $stmt = $pdo->prepare($sql);
-$stmt->bindValue(':userid', $userid, PDO::PARAM_STR);
+// $stmt->bindValue(':search', $search, PDO::PARAM_STR);
 $status = $stmt->execute();
-
-$usersql = "SELECT * FROM users WHERE id=:userid";
-$userstmt = $pdo->prepare($usersql);
-$userstmt->bindValue(':userid', $userid, PDO::PARAM_STR);
-$userstatus = $userstmt->execute();
-
 
 //3. SQL実行時にエラーがある場合STOP
 if($status==false){
     sql_error();
 } else {
-  while($userrecipe = $stmt->fetch(PDO::FETCH_ASSOC)){
-    $view .= '<div class="col-md-4"><h3>';
-    $view .= $userrecipe["title"];
-    $view .= '</h3><p>';
-    $view .= $userrecipe["season"];
-    $view .= '</p><p>';
-    $view .= $userrecipe["ingredient1"].','.$userrecipe["ingredient2"].','.$userrecipe["ingredient3"];
-    $view .= '</p>';
-    $view .= '<p><a class="btn btn-secondary" href="../recipe/showrecipe.php?id='.$userrecipe["id"].'" role="button">View details &raquo;</a></p>';
-    $view .= '</div>';
+  while($recipe = $stmt->fetch(PDO::FETCH_ASSOC)){
+    if($recipe["original"] == 0){
+        $view .= '<div class="col-md-4"><h3>';
+        $view .= $recipe["title"];
+        $view .= '</h3><p>';
+        $view .= $recipe["season"];
+        $view .= '</p><p>';
+        $view .= $recipe["ingredient1"].','.$recipe["ingredient2"].','.$recipe["ingredient3"];
+        $view .= '</p>';
+        $view .= '<p><a class="btn btn-secondary" href="../recipe/showrecipe.php?id='.$recipe["id"].'" role="button">View details &raquo;</a></p>';
+        $view .= '</div>';
+    }
   }
 }
 
-if($userstatus==false){
-  sql_error();
-} else {
-  $userresult = $userstmt->fetch();
-}
-
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -87,8 +76,8 @@ if($userstatus==false){
             </div>
           </li>
         </ul>
-        <form class="form-inline my-2 my-lg-0">
-          <input class="form-control mr-sm-2" type="text" placeholder="Search" aria-label="Search">
+        <form class="form-inline my-2 my-lg-0" method="post" action="../recipe/search.php">
+          <input class="form-control mr-sm-2" type="text" placeholder="Search" aria-label="Search" name="search">
           <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
         </form>
       </div>
@@ -97,9 +86,9 @@ if($userstatus==false){
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
-        <h1 class="display-3"><?=$userresult["name"]?>'s Recipe</h1>
-        <!-- <p></p>
-        <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> -->
+        <h1 class="display-3">All Recipe</h1>
+        <p></p>
+        <p><a class="btn btn-primary btn-lg" href="../recommend/recommend.php" role="button">Recommendation &raquo;</a></p>
       </div>
     </div>
 
@@ -126,3 +115,4 @@ if($userstatus==false){
 
   </body>
 </html>
+

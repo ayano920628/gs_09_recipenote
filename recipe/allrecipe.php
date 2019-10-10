@@ -1,44 +1,85 @@
 <?php
 session_start();
 include("../funcs.php");
-// sschk();
-
-$userid = $_GET["id"];
 
 $pdo = db_conn();
-$sql = "SELECT * FROM recipe WHERE userid=:userid";
+
+$countsql = "SELECT COUNT(*) FROM recipe WHERE original=0";
+$count = $pdo->prepare($countsql);
+$countstatus = $count->execute();
+
+if($countstatus==false){
+    sql_error();
+} else {
+    $r = $count->fetch();
+    $count = $r[0];
+}
+
+$sql = "SELECT * FROM recipe WHERE original=0";
 $stmt = $pdo->prepare($sql);
-$stmt->bindValue(':userid', $userid, PDO::PARAM_STR);
 $status = $stmt->execute();
-
-$usersql = "SELECT * FROM users WHERE id=:userid";
-$userstmt = $pdo->prepare($usersql);
-$userstmt->bindValue(':userid', $userid, PDO::PARAM_STR);
-$userstatus = $userstmt->execute();
-
 
 //3. SQL実行時にエラーがある場合STOP
 if($status==false){
     sql_error();
 } else {
-  while($userrecipe = $stmt->fetch(PDO::FETCH_ASSOC)){
-    $view .= '<div class="col-md-4"><h3>';
-    $view .= $userrecipe["title"];
-    $view .= '</h3><p>';
-    $view .= $userrecipe["season"];
-    $view .= '</p><p>';
-    $view .= $userrecipe["ingredient1"].','.$userrecipe["ingredient2"].','.$userrecipe["ingredient3"];
-    $view .= '</p>';
-    $view .= '<p><a class="btn btn-secondary" href="../recipe/showrecipe.php?id='.$userrecipe["id"].'" role="button">View details &raquo;</a></p>';
-    $view .= '</div>';
-  }
+  while($recipe = $stmt->fetch(PDO::FETCH_ASSOC)){
+      $view = '<div class="col-md-4"><h3>';
+      $view .= $recipe["title"];
+      $view .= '</h3><p>';
+      $view .= $recipe["season"];
+      $view .= '</p><p>';
+      $view .= $recipe["ingredient1"].','.$recipe["ingredient2"].','.$recipe["ingredient3"];
+      $view .= '</p>';
+      $view .= '<p><a class="btn btn-secondary" href="../recipe/showrecipe.php?id='.$recipe["id"].'" role="button">View details &raquo;</a></p>';
+      $view .= '</div>';
+    $recipetitle[] .= $view;
+}
 }
 
-if($userstatus==false){
-  sql_error();
-} else {
-  $userresult = $userstmt->fetch();
+define('MAX','6'); // 1ページの記事の表示数
+ 
+$max_page = ceil($count / MAX); // トータルページ数※ceilは小数点を切り捨てる関数
+ 
+if(!isset($_GET['page_id'])){ // $_GET['page_id'] はURLに渡された現在のページ数
+    $now = 1; // 設定されてない場合は1ページ目にする
+}else{
+    $now = $_GET['page_id'];
 }
+ 
+$start_no = ($now - 1) * MAX; // 配列の何番目から取得すればよいか
+ 
+// array_sliceは、配列の何番目($start_no)から何番目(MAX)まで切り取る関数
+$disp_data = array_slice($recipetitle, $start_no, MAX, true);
+ 
+foreach($disp_data as $val){ // データ表示
+    // echo $val['book_kind']. '　'.$val['book_name']. '<br />';
+    $showrecipe .= $val.'<br />';
+
+}
+
+if($now > 1){ // リンクをつけるかの判定
+    $paging .= '<a href=\'../recipe/allrecipe.php?page_id='.($now - 1).'\')>前へ</a>'. '　';
+} else {
+    $paging .= '前へ'. '　';
+}
+for($i = 1; $i <= $max_page; $i++){ // 最大ページ数分リンクを作成
+    if ($i == $now) { // 現在表示中のページ数の場合はリンクを貼らない
+      $paging .= $now. '　'; 
+    } else {
+      $paging .= '<a href=\'../recipe/allrecipe.php?page_id='. $i. '\')>'. $i. '</a>'. '　';
+    }
+}
+if($now < $max_page){ // リンクをつけるかの判定
+  $paging .= '<a href=\'../recipe/allrecipe.php?page_id='.($now + 1).'\')>次へ</a>'. '　';
+} else {
+  $paging .= '次へ';
+}
+if($_SESSION["kanri_flg"] == 1) {
+  $viewusers = '<li class="nav-item active"><a class="nav-link" href="../users/users.php">Users</a></li>';
+  $viewusers .= '<li class="nav-item active"><a class="nav-link" href="../recipe/recipeforadmin.php">Recipe</a></li>';
+}
+
 
 ?>
 
@@ -75,20 +116,19 @@ if($userstatus==false){
           <li class="nav-item active">
             <a class="nav-link" href="../recipe/recipe.php">Add Recipe</a>
           </li>
+          <?=$viewusers?>
           <li class="nav-item active">
             <a class="nav-link" href="../signin/logout.php">Logout</a>
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="http://example.com" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Dropdown</a>
             <div class="dropdown-menu" aria-labelledby="dropdown01">
-              <a class="dropdown-item" href="#">Action</a>
-              <a class="dropdown-item" href="#">Another action</a>
-              <a class="dropdown-item" href="#">Something else here</a>
+            <a class="dropdown-item" href="../mypage/delete.php?id=<?=$_SESSION["id"]?>">Resign</a>
             </div>
           </li>
         </ul>
-        <form class="form-inline my-2 my-lg-0">
-          <input class="form-control mr-sm-2" type="text" placeholder="Search" aria-label="Search">
+        <form class="form-inline my-2 my-lg-0" method="post" action="../recipe/search.php">
+          <input class="form-control mr-sm-2" type="text" placeholder="Search" aria-label="Search" name="search">
           <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
         </form>
       </div>
@@ -97,20 +137,22 @@ if($userstatus==false){
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
-        <h1 class="display-3"><?=$userresult["name"]?>'s Recipe</h1>
-        <!-- <p></p>
-        <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> -->
+        <h1 class="display-3">All Recipe</h1>
+        <p></p>
+        <p><a class="btn btn-primary btn-lg" href="../recommend/recommend.php" role="button">Recommendation &raquo;</a></p>
       </div>
     </div>
 
     <div class="container">
       <!-- Example row of columns -->
       <div class="row">
-        <?=$view?>
+        <?=$showrecipe?>
+      </div>
+      <div class="text-center">
+      <?=$paging?>
       </div>
 
       <hr>
-
       <footer>
         <p>&copy; Company 2017</p>
       </footer>
@@ -126,3 +168,4 @@ if($userstatus==false){
 
   </body>
 </html>
+

@@ -1,43 +1,52 @@
 <?php
 session_start();
 include("../funcs.php");
-// sschk();
-
-$userid = $_GET["id"];
+sschk();
 
 $pdo = db_conn();
-$sql = "SELECT * FROM recipe WHERE userid=:userid";
+$sql = "SELECT * FROM recipe";
 $stmt = $pdo->prepare($sql);
-$stmt->bindValue(':userid', $userid, PDO::PARAM_STR);
 $status = $stmt->execute();
-
-$usersql = "SELECT * FROM users WHERE id=:userid";
-$userstmt = $pdo->prepare($usersql);
-$userstmt->bindValue(':userid', $userid, PDO::PARAM_STR);
-$userstatus = $userstmt->execute();
-
 
 //3. SQL実行時にエラーがある場合STOP
 if($status==false){
     sql_error();
 } else {
-  while($userrecipe = $stmt->fetch(PDO::FETCH_ASSOC)){
-    $view .= '<div class="col-md-4"><h3>';
-    $view .= $userrecipe["title"];
-    $view .= '</h3><p>';
-    $view .= $userrecipe["season"];
-    $view .= '</p><p>';
-    $view .= $userrecipe["ingredient1"].','.$userrecipe["ingredient2"].','.$userrecipe["ingredient3"];
-    $view .= '</p>';
-    $view .= '<p><a class="btn btn-secondary" href="../recipe/showrecipe.php?id='.$userrecipe["id"].'" role="button">View details &raquo;</a></p>';
-    $view .= '</div>';
+  while($recipe = $stmt->fetch(PDO::FETCH_ASSOC)){
+    $recipes[] .= $recipe[id];
   }
 }
 
-if($userstatus==false){
-  sql_error();
-} else {
-  $userresult = $userstmt->fetch();
+$keys = array_rand($recipes, 3);
+shuffle($keys);
+foreach($keys as $key){
+    $recommend = $recipes[$key];
+    $recipesql = "SELECT * FROM recipe WHERE id=:recipeid";
+    $recipestmt = $pdo->prepare($recipesql);
+    $recipestmt->bindValue(':recipeid', $recommend, PDO::PARAM_INT);
+    $recipestatus = $recipestmt->execute();    
+    //3. SQL実行時にエラーがある場合STOP
+    if($recipestatus==false){
+        sql_error();
+    } else {
+        $recommendrecipe = $recipestmt->fetch();
+        $view .= '<div class="col-md-4"><h3>';
+        $view .= $recommendrecipe["title"];
+        $view .= '</h3><p>';
+        $view .= $recommendrecipe["season"];
+        $view .= '</p><p>';
+        $view .= $recommendrecipe["ingredient1"].','.$recommendrecipe["ingredient2"].','.$recommendrecipe["ingredient3"];
+        $view .= '</p>';
+        $view .= '<p><a class="btn btn-secondary" href="../recipe/showrecipe.php?id='.$recommendrecipe["id"].'" role="button">View details &raquo;</a></p>';
+        $view .= '</div>';
+    }
+
+}
+
+
+
+if($_SESSION["kanri_flg"] == 1) {
+  $viewusers = '<li class="nav-item active"><a class="nav-link" href="../users/users.php">Users</a></li>';
 }
 
 ?>
@@ -78,6 +87,7 @@ if($userstatus==false){
           <li class="nav-item active">
             <a class="nav-link" href="../signin/logout.php">Logout</a>
           </li>
+          <?=$viewusers?>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="http://example.com" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Dropdown</a>
             <div class="dropdown-menu" aria-labelledby="dropdown01">
@@ -97,9 +107,9 @@ if($userstatus==false){
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
-        <h1 class="display-3"><?=$userresult["name"]?>'s Recipe</h1>
+        <h1 class="display-3">For <?=$_SESSION["name"]?></h1>
         <!-- <p></p>
-        <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> -->
+        <p><a class="btn btn-primary btn-lg" href="../recommend/recommend.php" role="button">Recommendation &raquo;</a></p> -->
       </div>
     </div>
 

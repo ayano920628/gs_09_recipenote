@@ -1,21 +1,13 @@
 <?php
 session_start();
 include("../funcs.php");
-// sschk();
-
-$userid = $_GET["id"];
+sschk();
 
 $pdo = db_conn();
 $sql = "SELECT * FROM recipe WHERE userid=:userid";
 $stmt = $pdo->prepare($sql);
-$stmt->bindValue(':userid', $userid, PDO::PARAM_STR);
+$stmt->bindValue(':userid', $_SESSION["id"], PDO::PARAM_STR);
 $status = $stmt->execute();
-
-$usersql = "SELECT * FROM users WHERE id=:userid";
-$userstmt = $pdo->prepare($usersql);
-$userstmt->bindValue(':userid', $userid, PDO::PARAM_STR);
-$userstatus = $userstmt->execute();
-
 
 //3. SQL実行時にエラーがある場合STOP
 if($status==false){
@@ -34,10 +26,9 @@ if($status==false){
   }
 }
 
-if($userstatus==false){
-  sql_error();
-} else {
-  $userresult = $userstmt->fetch();
+if($_SESSION["kanri_flg"] == 1) {
+  $viewusers = '<li class="nav-item active"><a class="nav-link" href="../users/users.php">Users</a></li>';
+  $viewusers .= '<li class="nav-item active"><a class="nav-link" href="../recipe/recipeforadmin.php">Recipe</a></li>';
 }
 
 ?>
@@ -75,15 +66,14 @@ if($userstatus==false){
           <li class="nav-item active">
             <a class="nav-link" href="../recipe/recipe.php">Add Recipe</a>
           </li>
+          <?=$viewusers?>
           <li class="nav-item active">
             <a class="nav-link" href="../signin/logout.php">Logout</a>
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="http://example.com" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Dropdown</a>
             <div class="dropdown-menu" aria-labelledby="dropdown01">
-              <a class="dropdown-item" href="#">Action</a>
-              <a class="dropdown-item" href="#">Another action</a>
-              <a class="dropdown-item" href="#">Something else here</a>
+              <a class="dropdown-item" href="../mypage/delete.php?id=<?=$_SESSION["id"]?>">Resign</a>
             </div>
           </li>
         </ul>
@@ -97,9 +87,9 @@ if($userstatus==false){
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
-        <h1 class="display-3"><?=$userresult["name"]?>'s Recipe</h1>
-        <!-- <p></p>
-        <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> -->
+        <h1 class="display-3"><?=$_SESSION["name"]?>'s Recipe</h1>
+        <p></p>
+        <p><a class="btn btn-primary btn-lg" href="../recommend/recommend.php" role="button">Recommendation &raquo;</a></p>
       </div>
     </div>
 

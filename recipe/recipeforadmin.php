@@ -2,42 +2,73 @@
 session_start();
 include("../funcs.php");
 // sschk();
+if(!isset($_SESSION["kanri_flg"]) || $_SESSION["kanri_flg"] != 1){
+  exit("LOGIN ERROR");
+} else {
+  session_regenerate_id(true);
+  $_SESSION["chk_ssid"] = session_id();
+}
 
-$userid = $_GET["id"];
 
 $pdo = db_conn();
-$sql = "SELECT * FROM recipe WHERE userid=:userid";
+$sql = "SELECT * FROM recipe";
 $stmt = $pdo->prepare($sql);
-$stmt->bindValue(':userid', $userid, PDO::PARAM_STR);
 $status = $stmt->execute();
-
-$usersql = "SELECT * FROM users WHERE id=:userid";
-$userstmt = $pdo->prepare($usersql);
-$userstmt->bindValue(':userid', $userid, PDO::PARAM_STR);
-$userstatus = $userstmt->execute();
-
-
 //3. SQL実行時にエラーがある場合STOP
 if($status==false){
     sql_error();
 } else {
-  while($userrecipe = $stmt->fetch(PDO::FETCH_ASSOC)){
-    $view .= '<div class="col-md-4"><h3>';
-    $view .= $userrecipe["title"];
-    $view .= '</h3><p>';
-    $view .= $userrecipe["season"];
-    $view .= '</p><p>';
-    $view .= $userrecipe["ingredient1"].','.$userrecipe["ingredient2"].','.$userrecipe["ingredient3"];
-    $view .= '</p>';
-    $view .= '<p><a class="btn btn-secondary" href="../recipe/showrecipe.php?id='.$userrecipe["id"].'" role="button">View details &raquo;</a></p>';
-    $view .= '</div>';
+  $view = '<table><tr><th>id</th><th>userid</th><th>title</th><th>original</th><th>inputdate</th><th>edit/delete</th></tr>'; 
+  while($recipe = $stmt->fetch(PDO::FETCH_ASSOC)){
+    $view .= '<tr>';
+    $view .= '<td>'.$recipe["id"].'</td>';
+    $view .= '<td><a href="../mypage/userpage.php?id='.$recipe["userid"].'">'.$recipe["userid"].'</a></td>';
+    $view .= '<td>'.$recipe["title"].'</td>';
+    $view .= '<td>'.$recipe["original"].'</td>';
+    $view .= '<td>'.$recipe["inputdate"].'</td>';
+    $view .= '<td>';
+    $view .= '<a href="../recipe/showrecipe.php?id='.$recipe["id"].'"><i class="fas fa-edit"></i></i></a>';
+    $view .= '<a href="../recipe/delete.php?id='.$recipe["id"].'"><i class="fas fa-trash-alt"></i></a>';
+    $view .= '</td>';
+    $view .= '</tr>';
   }
+  $view .= '</table>'; 
 }
 
-if($userstatus==false){
-  sql_error();
-} else {
-  $userresult = $userstmt->fetch();
+$i = 0;
+while($i < 7){
+    $week[] .= date('m月j日', strtotime(''.-$i.' day'));
+    $i++;
+}
+$weeks = array_reverse($week);
+
+$j = -1;
+while($j < 7){
+    $day[] .= date('Y-m-d', strtotime(''.-$j.' day'));
+    $j++;
+}
+$days = array_reverse($day);
+
+$k = 0;
+while($k < 7) {
+    $l = $k + 1;
+    $startday = $days[$k].' 00:00:00';
+    $lastday = $days[$l].' 00:00:00';
+    $countsql = "SELECT COUNT(*) FROM recipe WHERE inputdate BETWEEN '$startday' AND '$lastday'";
+    $count = $pdo->prepare($countsql);
+    $countstatus = $count->execute();
+    if($countstatus==false){
+        sql_error();
+    } else {
+        $r = $count->fetch();
+        $recipecount[] .= $r[0];
+    }
+    $k++;
+}
+
+if($_SESSION["kanri_flg"] == 1) {
+    $viewusers = '<li class="nav-item active"><a class="nav-link" href="../users/users.php">Users</a></li>';
+    $viewusers .= '<li class="nav-item active"><a class="nav-link" href="../recipe/recipeforadmin.php">Recipe</a></li>';
 }
 
 ?>
@@ -50,13 +81,16 @@ if($userstatus==false){
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Recipe Note</title>
+    <title>Users</title>
 
     <!-- Bootstrap core CSS -->
       <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css">
 
     <!-- Custom styles for this template -->
     <link href="https://getbootstrap.com/docs/4.0/examples/jumbotron/jumbotron.css" rel="stylesheet">
+    <link href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.bundle.js"></script>
+
   </head>
 
   <body>
@@ -75,15 +109,14 @@ if($userstatus==false){
           <li class="nav-item active">
             <a class="nav-link" href="../recipe/recipe.php">Add Recipe</a>
           </li>
+          <?=$viewusers?>
           <li class="nav-item active">
             <a class="nav-link" href="../signin/logout.php">Logout</a>
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="http://example.com" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Dropdown</a>
             <div class="dropdown-menu" aria-labelledby="dropdown01">
-              <a class="dropdown-item" href="#">Action</a>
-              <a class="dropdown-item" href="#">Another action</a>
-              <a class="dropdown-item" href="#">Something else here</a>
+            <a class="dropdown-item" href="../mypage/delete.php?id=<?=$_SESSION["id"]?>">Resign</a>
             </div>
           </li>
         </ul>
@@ -97,7 +130,7 @@ if($userstatus==false){
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
-        <h1 class="display-3"><?=$userresult["name"]?>'s Recipe</h1>
+        <h1 class="display-3">Recipe</h1>
         <!-- <p></p>
         <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p> -->
       </div>
@@ -105,6 +138,9 @@ if($userstatus==false){
 
     <div class="container">
       <!-- Example row of columns -->
+      <div>
+        <canvas id="myChart"></canvas>
+      </div>
       <div class="row">
         <?=$view?>
       </div>
@@ -124,5 +160,41 @@ if($userstatus==false){
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
 
+    <script>
+      var ctx = document.getElementById("myChart");
+      var myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['<?=$weeks[0]?>', '<?=$weeks[1]?>', '<?=$weeks[2]?>', '<?=$weeks[3]?>', '<?=$weeks[4]?>', '<?=$weeks[5]?>', '<?=$weeks[6]?>'],
+          datasets: [
+            {
+              label: 'レシピ投稿数',
+              data: [<?=$recipecount[0]?>, <?=$recipecount[1]?>, <?=$recipecount[2]?>, <?=$recipecount[3]?>, <?=$recipecount[4]?>, <?=$recipecount[5]?>, <?=$recipecount[6]?>],
+              backgroundColor: "rgba(219,39,91,0.5)"
+            }
+          ],
+        },
+        options: {
+          title: {
+            display: true,
+            text: 'レシピ投稿数（<?=$weeks[0]?>~<?=$weeks[6]?>）'
+          },
+          scales: {
+            yAxes: [{
+              ticks: {
+                suggestedMax: 20,
+                suggestedMin: 0,
+                stepSize: 5,
+                callback: function(value, index, values){
+                  return  value +  '件'
+                }
+              }
+            }]
+          },
+        }
+      });
+    </script>
+
   </body>
 </html>
+
